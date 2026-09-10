@@ -39,6 +39,18 @@ The app expects a local external data root under the Android app sandbox:
 
 This directory is created automatically by `ExternalGameDataConfig` on first run. The application also accepts a configured override path if it is set explicitly in the future.
 
+### Selecting files on an Android phone
+
+The app uses Android's Storage Access Framework. The user does not need to browse to or manually copy files into `Android/data`:
+
+1. Open the app and tap **Select Dino Crisis Disc**.
+2. In the Android document picker, select the legally owned `.cue` file.
+3. Select the corresponding Track 1 `.bin` file when prompted.
+4. Select the corresponding Track 2 `.bin` file when prompted.
+5. The app copies only those selected files into its private external data directory, rewrites the local CUE references to the imported filenames, and validates the complete set through the native bridge.
+
+The app reports clear errors for cancelled selections, wrong file extensions, missing tracks, empty BIN files, unreadable files, invalid CUE metadata, and audio tracks supplied where data tracks are required. The native reader exposes read-only sector access; it does not write to or modify the selected source documents.
+
 Expected disc layout for a legal local PS1 disc source:
 
 ```text
@@ -53,6 +65,18 @@ Android/data/com.dinocrisis.nativeandroid/files/game_data/
 ```
 
 For a typical original PS1 disc, the loader expects a CUE file plus at least Track 1 and Track 2 BIN files. These files remain user-owned and local only; they are not embedded, copied, or tracked in the repository. The loader is read-only and does not emulate the PS1 CPU.
+
+## Android SAF import flow
+
+The app provides a `Select Dino Crisis Disc` action. Use it to select the three legally owned files through Android's document picker:
+
+1. Select the `.cue` file.
+2. Select the matching Track 1 `.bin` file when prompted.
+3. Select the matching Track 2 `.bin` file when prompted.
+
+The app copies the selected streams into its private external directory as `disc.cue`, `track1.bin`, and `track2.bin`. It rewrites the local CUE references to those private filenames, then passes the resulting paths through JNI to the native C++ validator. The original files are never modified and no game data is packaged in the APK.
+
+The native layer logs each detected track, validates that both BIN files exist, and exposes read-only sector/range access through the platform filesystem abstraction. Missing files, unreadable documents, malformed CUE metadata, and empty BIN selections are shown as game-data errors in the Activity.
 
 ## Git exclusion policy
 

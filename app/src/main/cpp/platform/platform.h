@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <string>
+#include <vector>
 namespace platform {
 struct InputState { float touchX = 0.0F; float touchY = 0.0F; bool touchDown = false; };
 void setGameDataPath(const std::string& path);
@@ -12,4 +13,6 @@ InputState currentInput();
 void initializeAudio();
 void shutdownAudio();
 void clearGraphics(float red, float green, float blue);
+bool readOnlyFileSize(const std::string& path, std::uint64_t& size);
+bool readOnlyFileRange(const std::string& path, std::uint64_t offset, std::size_t length, std::vector<std::uint8_t>& data);
 }
