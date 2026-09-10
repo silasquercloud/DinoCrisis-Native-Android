@@ -1,0 +1,47 @@
+# Android / IDE
+.gradle/
+.idea/
+*.iml
+local.properties
+*.keystore
+**/build/
+**/.cxx/
+
+# Android generated
+captures/
+*.apk
+*.aab
+*.ap_
+
+# Native / caches
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+
+# Legal exclusions: game data and commercial assets
+# User-owned original discs or extracted assets must stay local and outside the repo.
+*.bin
+*.cue
+*.iso
+*.img
+*.mdf
+*.nrg
+*.bin.gz
+*.img.gz
+*.zip
+*.rar
+*.7z
+
+# Common extracted PS1 commercial data directories
+**/game_data/**
+**/assets/**
+**/roms/**
+**/data/**
+**/extract/**
+**/disc/**
+
+# OS noise
+.DS_Store
+Thumbs.db

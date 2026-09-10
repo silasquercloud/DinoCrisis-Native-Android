@@ -1,0 +1,1 @@
+# JNI entry points are referenced by the Activity.
