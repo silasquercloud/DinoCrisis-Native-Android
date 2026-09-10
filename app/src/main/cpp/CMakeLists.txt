@@ -13,6 +13,7 @@ add_library(dinocrisis_native SHARED
     native_bridge.cpp
     engine/native_engine.cpp
     data/game_data.cpp
+    data/disc_layout.cpp
     platform/android_filesystem.cpp
     platform/android_input.cpp
     platform/android_audio.cpp

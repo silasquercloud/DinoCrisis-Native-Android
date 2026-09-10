@@ -15,8 +15,8 @@ public final class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        File gameData = new File(getExternalFilesDir(null), "game_data");
-        if (!gameData.exists() && !gameData.mkdirs()) throw new IllegalStateException("Unable to create game data directory");
+
+        File gameData = ExternalGameDataConfig.resolveDirectory(this, null);
         nativeInitialize(gameData.getAbsolutePath());
         surfaceView = new NativeSurfaceView();
         setContentView(surfaceView);

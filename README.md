@@ -33,13 +33,26 @@ The native engine initializes a minimal GLES 3 shader program and draws a colore
 
 ## Where the user game data should be placed
 
-The app expects a local data root in the Android app sandbox, under:
+The app expects a local external data root under the Android app sandbox:
 
 - `Android/data/com.dinocrisis.nativeandroid/files/game_data/`
 
-This is created on first run by the Android `MainActivity` via `getExternalFilesDir(null)`.
+This directory is created automatically by `ExternalGameDataConfig` on first run. The application also accepts a configured override path if it is set explicitly in the future.
 
-The user is expected to place their legally acquired, owner-supplied Dino Crisis data locally there. The project intentionally does not include, copy, or distribute any disc images, extracts, or commercial game assets.
+Expected disc layout for a legal local PS1 disc source:
+
+```text
+Android/data/com.dinocrisis.nativeandroid/files/game_data/
+├── dino_crisis/
+│   ├── disc1.cue
+│   ├── disc1_track1.bin
+│   ├── disc1_track2.bin
+│   └── README.txt     # optional local notes, not a game asset
+└── raw/
+    └── (optional local copies or extracted metadata only)
+```
+
+For a typical original PS1 disc, the loader expects a CUE file plus at least Track 1 and Track 2 BIN files. These files remain user-owned and local only; they are not embedded, copied, or tracked in the repository. The loader is read-only and does not emulate the PS1 CPU.
 
 ## Git exclusion policy
 
