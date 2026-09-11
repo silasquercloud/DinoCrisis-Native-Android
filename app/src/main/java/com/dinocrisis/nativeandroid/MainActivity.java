@@ -27,6 +27,9 @@ public final class MainActivity extends Activity {
     private static final int REQUEST_TRACK_TWO = 102;
 
     static { System.loadLibrary("dinocrisis_native"); }
+
+    private static final String ALPHA_RUNTIME_STATUS =
+        "Alpha runtime ready: waiting for legal Dino Crisis disc data";
     private NativeSurfaceView surfaceView;
     private TextView dataStatus;
     private File gameDataDirectory;
@@ -55,7 +58,7 @@ public final class MainActivity extends Activity {
         root.addView(selectDisc, buttonParams);
 
         dataStatus = new TextView(this);
-        dataStatus.setText("No external disc selected");
+        dataStatus.setText(ALPHA_RUNTIME_STATUS);
         dataStatus.setTextColor(0xFFFFFFFF);
         dataStatus.setBackgroundColor(0xAA000000);
         dataStatus.setPadding(20, 12, 20, 12);
@@ -91,6 +94,10 @@ public final class MainActivity extends Activity {
     private static native void nativeOnDrawFrame();
     private static native String nativeValidateDiscFiles(String cuePath, String trackOnePath, String trackTwoPath);
 
+    private static String formatRuntimeStatus(String phase, String value) {
+        return phase + ": " + value;
+    }
+
     private void beginCueSelection() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -116,13 +123,16 @@ public final class MainActivity extends Activity {
                 beginBinarySelection(REQUEST_TRACK_TWO);
             } else if (requestCode == REQUEST_TRACK_TWO) {
                 File trackTwoFile = importBinary(data.getData(), "track2.bin");
-                String error = nativeValidateDiscFiles(
+                String runtimeStatus = nativeValidateDiscFiles(
                     cueFile.getAbsolutePath(), trackOneFile.getAbsolutePath(), trackTwoFile.getAbsolutePath());
-                if (error != null && !error.isEmpty()) {
-                    showDataError(error);
+                if (runtimeStatus != null && !runtimeStatus.isEmpty() && runtimeStatus.startsWith("ERROR:")) {
+                    showDataError(runtimeStatus.substring("ERROR:".length()));
                     return;
                 }
-                showDataStatus("Disc validated: CUE + Track 1 BIN + Track 2 BIN");
+                if (runtimeStatus == null || runtimeStatus.isEmpty()) {
+                    runtimeStatus = "Disc validated: CUE + Track 1 BIN + Track 2 BIN; runtime bootstrapped";
+                }
+                showDataStatus(runtimeStatus);
             }
         } catch (IOException | IllegalArgumentException error) {
             showDataError(error.getMessage() == null ? "Unable to import selected file" : error.getMessage());

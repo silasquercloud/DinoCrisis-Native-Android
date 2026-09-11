@@ -88,7 +88,7 @@ Java_com_dinocrisis_nativeandroid_MainActivity_nativeValidateDiscFiles(JNIEnv* e
     const auto trackOne = toString(trackOnePath);
     const auto trackTwo = toString(trackTwoPath);
     if (!data::ExternalGameDataSource::parseCueFile(cue, layout, error)) {
-        return env->NewStringUTF(error.c_str());
+        return env->NewStringUTF((std::string("ERROR:") + error).c_str());
     }
 
     for (auto& track : layout.tracks) {
@@ -101,11 +101,19 @@ Java_com_dinocrisis_nativeandroid_MainActivity_nativeValidateDiscFiles(JNIEnv* e
         }
     }
     if (!data::ExternalGameDataSource::validate(layout, error)) {
-        return env->NewStringUTF(error.c_str());
+        return env->NewStringUTF((std::string("ERROR:") + error).c_str());
     }
 
-    platform::logInfo("SAF disc validation succeeded: cue=" + cue + ", track1=" + trackOne + ", track2=" + trackTwo);
-    return nullptr;
+    data::PsxExecutableInfo executable;
+    if (!data::ExternalGameDataSource::analyzePsxExecutable(layout, executable, error)) {
+        return env->NewStringUTF((std::string("ERROR:") + error).c_str());
+    }
+
+    std::string status = "Game data detected: CUE validated | Track 1 validated | Track 2 validated | ";
+    status += "Disc validation result: success | ";
+    status += executable.status;
+    platform::logInfo("SAF disc validation succeeded: cue=" + cue + ", track1=" + trackOne + ", track2=" + trackTwo + " | " + executable.status);
+    return env->NewStringUTF(status.c_str());
 }
 
 }  // extern "C"

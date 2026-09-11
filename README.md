@@ -2,9 +2,16 @@
 
 This repository is the foundation for a genuine native Android port project for the original PlayStation 1 game Dino Crisis (1999). It is intentionally not an emulator, and it does not include any commercial game ROM, disc image, extracted assets, textures, models, or other copyrighted data.
 
+## Alpha version
+
+- Application label: Dino Crisis Native Alpha
+- Version: v0.1.0-alpha
+- Primary Android target: arm64-v8a
+- Current runtime status: native bootstrap is live; it validates imported user disc data and confirms the PS-X EXE header when present, without emulating the PS1 CPU.
+
 ## Project scope
 
-The current goal is only the native Android foundation:
+The current goal is the native Android alpha bootstrap:
 
 - Android Gradle project and NDK/CMake build
 - arm64-v8a APK/AAB target setup
@@ -15,6 +22,16 @@ The current goal is only the native Android foundation:
 - Data-loading interface that expects the user's legally supplied game files to live locally
 
 This repository contains only original source code, reverse-engineering scaffolding, and legally redistributable build tooling.
+
+## Runtime status
+
+The alpha runtime is intentionally conservative:
+
+- Imported user disc data is accepted through Android SAF
+- Native C++ validates the CUE plus Track 1 and Track 2 BIN files
+- The app reads the Track 1 data only for read-only metadata inspection and checks the standard PS-X EXE header values recorded in Phase 4
+- The renderer is initialized on OpenGL ES 3.x and keeps the app bootstrapped as a native Android runtime
+- No PS1 CPU emulation, no MIPS core, and no game logic are implemented yet
 
 ## Architecture
 
@@ -29,7 +46,7 @@ This repository contains only original source code, reverse-engineering scaffold
 
 The Android app is built with the Android Gradle Plugin and CMake through the NDK. The native library is named `dinocrisis_native` and is loaded at runtime by `MainActivity`. The CMake configuration compiles the library for `arm64-v8a` and links it to the Android logging and OpenGL ES libraries.
 
-The native engine initializes a minimal GLES 3 shader program and draws a colored triangle on a full-screen surface so we can verify that the Android renderer, shader pipeline, and JNI bridge are working correctly.
+The native engine initializes a minimal GLES 3 shader program and draws a colored triangle on a full-screen surface so we can verify that the Android renderer, shader pipeline, and JNI bridge are working correctly. The runtime then validates imported legal disc data and reports the PS-X EXE metadata if the user disc is present.
 
 ## Where the user game data should be placed
 
@@ -104,13 +121,25 @@ From the repository root:
 export ANDROID_HOME=/path/to/Android/Sdk
 export ANDROID_SDK_ROOT=/path/to/Android/Sdk
 ./gradlew :app:assembleDebug
+./gradlew :app:assembleRelease
 ```
 
 The resulting APK appears at:
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
+app/build/outputs/apk/release/app-release-unsigned.apk
 ```
+
+## Known limitations
+
+- This is not a full PS1 emulator and does not attempt to execute the MIPS CPU or game logic.
+- The runtime only validates the warranted legal disc metadata and initializes the Android/native runtime skeleton.
+- Full game content execution remains a future engineering milestone after the legal data access, engine foundations, and native architecture are complete.
+
+## How to report bugs
+
+Please open an issue with the device model, Android version, ABI, and the exact runtime status message shown in the app when validation fails. Keep all reports focused on native bootstrap, CUE/BIN validation, or OpenGL ES setup; do not upload or attach the commercial game ROM or disc data itself.
 
 ## Legal notice
 
