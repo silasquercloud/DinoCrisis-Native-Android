@@ -64,6 +64,8 @@ class DiscAnalyzerTest(unittest.TestCase):
             self.assertEqual(result.iso_entries[0].name, "BOOT.EXE;1")
             self.assertEqual(result.psx_exe["sector"], 30)
             self.assertEqual(result.psx_exe["entry_point"], 0x80010000)
+            self.assertFalse(result.native_recompilation["possible_from_metadata"])
+            self.assertIn("MIPS instructions", result.native_recompilation["blockers"][0])
 
 
 if __name__ == "__main__":

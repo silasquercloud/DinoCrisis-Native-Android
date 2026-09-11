@@ -21,6 +21,7 @@ add_library(dinocrisis_native SHARED
     platform/android_graphics.cpp
     platform/android_memory.cpp
     ps1/ps1_facade.cpp
+    runtime/psx_native_runtime.cpp
 )
 
 target_include_directories(dinocrisis_native PRIVATE

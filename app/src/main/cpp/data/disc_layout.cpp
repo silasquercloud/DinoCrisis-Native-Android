@@ -104,6 +104,10 @@ bool DiscSectorReader::readSector(std::uint64_t lba, std::vector<std::uint8_t>& 
     if (!isOpen()) {
         return false;
     }
+    if (cachedLba_ == lba && cachedSector_.size() == 2352) {
+        sector = cachedSector_;
+        return true;
+    }
 
     const std::uint64_t sectorSize = 2352ULL;
     const auto trackOne = std::find_if(layout_.tracks.begin(), layout_.tracks.end(), [](const DiscTrack& track) {
@@ -119,7 +123,12 @@ bool DiscSectorReader::readSector(std::uint64_t lba, std::vector<std::uint8_t>& 
         return false;
     }
 
-    return platform::readOnlyFileRange(trackOne->filePath, lba * sectorSize, sectorSize, sector);
+    if (!platform::readOnlyFileRange(trackOne->filePath, lba * sectorSize, sectorSize, sector)) {
+        return false;
+    }
+    cachedLba_ = lba;
+    cachedSector_ = sector;
+    return true;
 }
 
 bool DiscSectorReader::readRange(std::uint64_t startLba, std::size_t sectorCount, std::vector<std::uint8_t>& buffer) const {
@@ -315,15 +324,20 @@ bool ExternalGameDataSource::analyzePsxExecutable(const DiscLayout& layout, PsxE
 
     const auto read32 = [](const std::vector<std::uint8_t>& data, std::size_t offset) {
         return static_cast<std::uint32_t>(
-            (static_cast<std::uint32_t>(data[offset + 0]) << 24) |
-            (static_cast<std::uint32_t>(data[offset + 1]) << 16) |
-            (static_cast<std::uint32_t>(data[offset + 2]) << 8) |
-            static_cast<std::uint32_t>(data[offset + 3]));
+            static_cast<std::uint32_t>(data[offset + 0]) |
+            (static_cast<std::uint32_t>(data[offset + 1]) << 8) |
+            (static_cast<std::uint32_t>(data[offset + 2]) << 16) |
+            (static_cast<std::uint32_t>(data[offset + 3]) << 24));
     };
 
-    const std::uint32_t loadAddress = read32(header, 0x10);
-    const std::uint32_t entryPoint = read32(header, 0x14);
-    const std::uint32_t textSize = read32(header, 0x18);
+    const std::uint32_t entryPoint = read32(header, 0x10);
+    const std::uint32_t globalPointer = read32(header, 0x14);
+    const std::uint32_t loadAddress = read32(header, 0x18);
+    const std::uint32_t textSize = read32(header, 0x1c);
+    const std::uint32_t bssAddress = read32(header, 0x30);
+    const std::uint32_t bssSize = read32(header, 0x34);
+    const std::uint32_t stackAddress = read32(header, 0x38);
+    const std::uint32_t stackSize = read32(header, 0x3c);
 
     info.found = true;
     info.fileName = trackOne->fileName;
@@ -332,9 +346,14 @@ bool ExternalGameDataSource::analyzePsxExecutable(const DiscLayout& layout, PsxE
     info.loadAddress = loadAddress;
     info.entryPoint = entryPoint;
     info.textSize = textSize;
-    info.status = "PS-X EXE header confirmed at Track 1 LBA 161099; load=0x" +
-        std::to_string(loadAddress) + ", entry=0x" + std::to_string(entryPoint) +
-        ", text=" + std::to_string(textSize);
+    info.globalPointer = globalPointer;
+    info.bssAddress = bssAddress;
+    info.bssSize = bssSize;
+    info.stackAddress = stackAddress;
+    info.stackSize = stackSize;
+    info.status = "PS-X EXE header confirmed at Track 1 LBA 161099; entry=0x" +
+        std::to_string(entryPoint) + ", load=0x" + std::to_string(loadAddress) +
+        ", text=" + std::to_string(textSize) + ", bss=" + std::to_string(bssSize);
     error.clear();
     return true;
 }

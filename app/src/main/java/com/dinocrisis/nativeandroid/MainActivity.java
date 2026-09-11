@@ -8,6 +8,9 @@ import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.graphics.Color;
 import android.view.Gravity;
+import android.view.InputDevice;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -48,6 +51,7 @@ public final class MainActivity extends Activity {
     private TextView cueSelectionStatus;
     private TextView trackOneSelectionStatus;
     private TextView trackTwoSelectionStatus;
+    private int gamepadButtons;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -129,6 +133,75 @@ public final class MainActivity extends Activity {
     private static native void nativeOnDrawFrame();
     private static native String nativeValidateDiscFiles(String cuePath, String trackOnePath, String trackTwoPath);
     private static native String nativeLoadGame(String cuePath, String trackOnePath, String trackTwoPath);
+    private static native void nativeSetGamepadState(int buttons, float leftX, float leftY, float rightX, float rightY);
+
+    private static final int PAD_DPAD_UP = 1 << 0;
+    private static final int PAD_DPAD_DOWN = 1 << 1;
+    private static final int PAD_DPAD_LEFT = 1 << 2;
+    private static final int PAD_DPAD_RIGHT = 1 << 3;
+    private static final int PAD_ACTION_SOUTH = 1 << 4;
+    private static final int PAD_ACTION_EAST = 1 << 5;
+    private static final int PAD_ACTION_WEST = 1 << 6;
+    private static final int PAD_ACTION_NORTH = 1 << 7;
+    private static final int PAD_L1 = 1 << 8;
+    private static final int PAD_R1 = 1 << 9;
+    private static final int PAD_START = 1 << 10;
+    private static final int PAD_SELECT = 1 << 11;
+
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        if (isGamepadEvent(event)) {
+            int button = buttonForKey(event.getKeyCode());
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                gamepadButtons |= button;
+            } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                gamepadButtons &= ~button;
+            }
+            nativeSetGamepadState(gamepadButtons, 0.0F, 0.0F, 0.0F, 0.0F);
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        if ((event.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) {
+            nativeSetGamepadState(0,
+                axis(event, MotionEvent.AXIS_X), axis(event, MotionEvent.AXIS_Y),
+                axis(event, MotionEvent.AXIS_Z), axis(event, MotionEvent.AXIS_RZ));
+            return true;
+        }
+        return super.dispatchGenericMotionEvent(event);
+    }
+
+    private boolean isGamepadEvent(KeyEvent event) {
+        int source = event.getSource();
+        return (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
+            (source & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD;
+    }
+
+    private int buttonForKey(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_DPAD_UP: return PAD_DPAD_UP;
+            case KeyEvent.KEYCODE_DPAD_DOWN: return PAD_DPAD_DOWN;
+            case KeyEvent.KEYCODE_DPAD_LEFT: return PAD_DPAD_LEFT;
+            case KeyEvent.KEYCODE_DPAD_RIGHT: return PAD_DPAD_RIGHT;
+            case KeyEvent.KEYCODE_BUTTON_A: return PAD_ACTION_SOUTH;
+            case KeyEvent.KEYCODE_BUTTON_B: return PAD_ACTION_EAST;
+            case KeyEvent.KEYCODE_BUTTON_X: return PAD_ACTION_WEST;
+            case KeyEvent.KEYCODE_BUTTON_Y: return PAD_ACTION_NORTH;
+            case KeyEvent.KEYCODE_BUTTON_L1: return PAD_L1;
+            case KeyEvent.KEYCODE_BUTTON_R1: return PAD_R1;
+            case KeyEvent.KEYCODE_BUTTON_START: return PAD_START;
+            case KeyEvent.KEYCODE_BUTTON_SELECT: return PAD_SELECT;
+            default: return 0;
+        }
+    }
+
+    private float axis(MotionEvent event, int axis) {
+        InputDevice device = event.getDevice();
+        InputDevice.MotionRange range = device == null ? null : device.getMotionRange(axis, event.getSource());
+        float value = event.getAxisValue(axis);
+        return range == null || Math.abs(value) > range.getFlat() ? value : 0.0F;
+    }
 
     private LinearLayout.LayoutParams matchWrapParams(int topMargin, int bottomMargin) {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(

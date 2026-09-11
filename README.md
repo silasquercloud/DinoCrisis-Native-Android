@@ -5,7 +5,7 @@ This repository is the foundation for a genuine native Android port project for 
 ## Alpha version
 
 - Application label: Dino Crisis Native Alpha
-- Version: v0.1.2-alpha
+- Version: v0.1.3-alpha
 - Primary Android target: arm64-v8a
 - Current runtime status: native bootstrap is live; it validates imported user disc data and confirms the PS-X EXE header when present, without emulating the PS1 CPU.
 
@@ -32,6 +32,12 @@ The alpha runtime is intentionally conservative:
 - The app reads the Track 1 data only for read-only metadata inspection and checks the standard PS-X EXE header values recorded in Phase 4
 - The renderer is initialized on OpenGL ES 3.x only after the selected data passes native validation
 - No PS1 CPU emulation, no MIPS core, and no game logic are implemented yet
+
+Phase 7 adds the deepest verified native bootstrap currently possible without an emulator or a recovered/recompiled game source: the runtime allocates memory sized from the PS-X EXE metadata, confirms a read-only sector read at the executable LBA, exposes diagnostics for graphics/audio/controller services, and receives physical Android gamepad input. The original MIPS code is not executed.
+
+### Gamepad input
+
+Physical Android, Bluetooth, and USB controllers are preferred. D-pad, A/B/X/Y, L1/R1, Start/Select, and left/right analog axes are forwarded through JNI to the native runtime. Touch gameplay controls are intentionally out of scope for this alpha.
 
 ## Architecture
 
@@ -137,6 +143,7 @@ app/build/outputs/apk/release/app-release-unsigned.apk
 
 - This is not a full PS1 emulator and does not attempt to execute the MIPS CPU or game logic.
 - The runtime validates the warranted legal disc metadata and initializes the Android/native runtime skeleton, but the full game runtime is not yet ready.
+- The PS-X EXE cannot be executed directly as ARM64 native code. Automatic recompilation is not available from the header and raw binary alone; the remaining blocker is the original MIPS code's BIOS, GPU, CD-ROM, memory-mapped hardware, and runtime service dependencies.
 - Full game content execution remains a future engineering milestone after the legal data access, engine foundations, and native architecture are complete.
 
 ## How to report bugs

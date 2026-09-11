@@ -3,7 +3,16 @@
 #include <string>
 #include <vector>
 namespace platform {
-struct InputState { float touchX = 0.0F; float touchY = 0.0F; bool touchDown = false; };
+struct InputState {
+	float touchX = 0.0F;
+	float touchY = 0.0F;
+	float leftX = 0.0F;
+	float leftY = 0.0F;
+	float rightX = 0.0F;
+	float rightY = 0.0F;
+	std::uint32_t buttons = 0;
+	bool touchDown = false;
+};
 void setGameDataPath(const std::string& path);
 std::string gameDataPath();
 uint64_t monotonicMilliseconds();

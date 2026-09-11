@@ -61,6 +61,7 @@ class Analysis:
     iso_entries: list[IsoEntry] = field(default_factory=list)
     psx_exe: Optional[dict] = None
     raw_mips_candidates: list[dict] = field(default_factory=list)
+    native_recompilation: dict = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
 
@@ -163,8 +164,13 @@ def _find_psx_exe(raw: bytes) -> Optional[dict]:
         "sector": position // SECTOR_SIZE,
         "sector_offset": position % SECTOR_SIZE,
         "load_address": int.from_bytes(header[0x18:0x1C], "little"),
+        "global_pointer": int.from_bytes(header[0x14:0x18], "little"),
         "entry_point": int.from_bytes(header[0x10:0x14], "little"),
         "text_size": int.from_bytes(header[0x1C:0x20], "little"),
+        "bss_address": int.from_bytes(header[0x30:0x34], "little"),
+        "bss_size": int.from_bytes(header[0x34:0x38], "little"),
+        "stack_address": int.from_bytes(header[0x38:0x3C], "little"),
+        "stack_size": int.from_bytes(header[0x3C:0x40], "little"),
     }
 
 
@@ -196,6 +202,24 @@ def analyze(cue_path: Path) -> Analysis:
         raw = Path(track.file_path).read_bytes()
         _parse_iso(raw, analysis)
         analysis.psx_exe = _find_psx_exe(raw)
+        if analysis.psx_exe is not None:
+            analysis.native_recompilation = {
+                "possible_from_metadata": False,
+                "code_region": {
+                    "file_offset": analysis.psx_exe["byte_offset"] + 2048,
+                    "load_address": analysis.psx_exe["load_address"],
+                    "size": analysis.psx_exe["text_size"],
+                },
+                "data_region": "embedded in executable/disc files; no extraction performed",
+                "bss_region": {
+                    "address": analysis.psx_exe["bss_address"],
+                    "size": analysis.psx_exe["bss_size"],
+                },
+                "blockers": [
+                    "MIPS instructions require source-level/native recompilation or a CPU implementation",
+                    "BIOS, GPU, CD-ROM, controller, and memory-mapped service dependencies are unresolved",
+                ],
+            }
         if analysis.psx_exe is None:
             analysis.raw_mips_candidates = _find_raw_mips_candidates(raw)
             analysis.warnings.append("No PS-X EXE header detected; load address and entry point are unknown")

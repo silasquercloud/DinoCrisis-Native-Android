@@ -34,6 +34,11 @@ struct PsxExecutableInfo {
     std::uint32_t loadAddress = 0;
     std::uint32_t entryPoint = 0;
     std::uint32_t textSize = 0;
+    std::uint32_t globalPointer = 0;
+    std::uint32_t bssAddress = 0;
+    std::uint32_t bssSize = 0;
+    std::uint32_t stackAddress = 0;
+    std::uint32_t stackSize = 0;
     std::string status;
 };
 
@@ -48,6 +53,8 @@ public:
 
 private:
     DiscLayout layout_;
+    mutable std::uint64_t cachedLba_ = UINT64_MAX;
+    mutable std::vector<std::uint8_t> cachedSector_;
 };
 
 class ExternalGameDataSource {
