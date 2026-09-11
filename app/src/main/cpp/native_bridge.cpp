@@ -108,12 +108,11 @@ Java_com_dinocrisis_nativeandroid_MainActivity_nativeValidateDiscFiles(JNIEnv* e
 
     data::PsxExecutableInfo executable;
     const bool executableFound = data::ExternalGameDataSource::analyzePsxExecutable(layout, executable, error);
-    std::string status = "CUE valid | Track 1 valid | Track 2 valid | Disc validation: success";
-    if (executableFound) {
-        status += " | " + executable.status;
-    } else {
-        status += " | PS-X EXE discovery: " + error;
+    if (!executableFound) {
+        return env->NewStringUTF((std::string("ERROR:") + error).c_str());
     }
+    std::string status = "CUE valid | Track 1 valid | Track 2 valid | Disc validation: success";
+    status += " | " + executable.status;
     platform::logInfo("SAF disc validation succeeded: cue=" + cue + ", track1=" + trackOne + ", track2=" + trackTwo);
     return env->NewStringUTF(status.c_str());
 }
