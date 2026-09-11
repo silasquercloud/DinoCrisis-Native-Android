@@ -5,7 +5,7 @@ This repository is the foundation for a genuine native Android port project for 
 ## Alpha version
 
 - Application label: Dino Crisis Native Alpha
-- Version: v0.1.0-alpha
+- Version: v0.1.2-alpha
 - Primary Android target: arm64-v8a
 - Current runtime status: native bootstrap is live; it validates imported user disc data and confirms the PS-X EXE header when present, without emulating the PS1 CPU.
 
@@ -27,10 +27,10 @@ This repository contains only original source code, reverse-engineering scaffold
 
 The alpha runtime is intentionally conservative:
 
-- Imported user disc data is accepted through Android SAF
-- Native C++ validates the CUE plus Track 1 and Track 2 BIN files
+- Imported user disc data is accepted through Android SAF using three independent actions: SELECT CUE, SELECT TRACK 1 BIN, and SELECT TRACK 2 BIN
+- Native C++ validates the CUE plus Track 1 and Track 2 BIN files only after LOAD GAME is pressed
 - The app reads the Track 1 data only for read-only metadata inspection and checks the standard PS-X EXE header values recorded in Phase 4
-- The renderer is initialized on OpenGL ES 3.x and keeps the app bootstrapped as a native Android runtime
+- The renderer is initialized on OpenGL ES 3.x only after the selected data passes native validation
 - No PS1 CPU emulation, no MIPS core, and no game logic are implemented yet
 
 ## Architecture
@@ -95,6 +95,8 @@ The app copies the selected streams into its private external directory as `disc
 
 The native layer logs each detected track, validates that both BIN files exist, and exposes read-only sector/range access through the platform filesystem abstraction. Missing files, unreadable documents, malformed CUE metadata, and empty BIN selections are shown as game-data errors in the Activity.
 
+The alpha menu keeps the three selections separate. Each accepted filename is shown below its button, and `LOAD GAME` remains disabled until all three imported files pass native validation. If validation succeeds, the app reports the discovered metadata and explicitly shows `Game runtime not yet ready`; it does not pretend that gameplay has started.
+
 ## Git exclusion policy
 
 The repository includes a strict `.gitignore` to prevent accidental commits of:
@@ -134,7 +136,7 @@ app/build/outputs/apk/release/app-release-unsigned.apk
 ## Known limitations
 
 - This is not a full PS1 emulator and does not attempt to execute the MIPS CPU or game logic.
-- The runtime only validates the warranted legal disc metadata and initializes the Android/native runtime skeleton.
+- The runtime validates the warranted legal disc metadata and initializes the Android/native runtime skeleton, but the full game runtime is not yet ready.
 - Full game content execution remains a future engineering milestone after the legal data access, engine foundations, and native architecture are complete.
 
 ## How to report bugs

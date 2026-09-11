@@ -12,6 +12,7 @@ public:
     ~NativeEngine();
 
     void initialize(const std::string& gameDataPath);
+    void setRuntimeReady(bool ready);
     void shutdown();
 
     void onSurfaceCreated();
@@ -21,6 +22,7 @@ public:
 private:
     std::string gameDataPath_;
     bool initialized_ = false;
+    bool runtimeReady_ = false;
     bool surfaceCreated_ = false;
     int width_ = 0;
     int height_ = 0;

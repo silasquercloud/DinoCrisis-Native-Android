@@ -238,7 +238,6 @@ bool ExternalGameDataSource::validate(const DiscLayout& layout, std::string& err
     bool track1Exists = false;
     bool track2Exists = false;
     bool track1Data = false;
-    bool track2Data = false;
     for (const auto& track : layout.tracks) {
         if (track.trackNumber == 1) {
             track1Exists = std::filesystem::exists(track.filePath);
@@ -246,7 +245,6 @@ bool ExternalGameDataSource::validate(const DiscLayout& layout, std::string& err
         }
         if (track.trackNumber == 2) {
             track2Exists = std::filesystem::exists(track.filePath);
-            track2Data = !track.isAudio;
         }
     }
 
@@ -255,8 +253,23 @@ bool ExternalGameDataSource::validate(const DiscLayout& layout, std::string& err
         return false;
     }
 
-    if (!track1Data || !track2Data) {
-        error = "Track 1 and Track 2 must be data tracks, not AUDIO tracks";
+    if (!track1Data) {
+        error = "Track 1 must be a data track; Track 2 may be AUDIO for the original disc layout";
+        return false;
+    }
+
+    const auto hasCompleteSectors = [](const DiscTrack& track) {
+        return track.fileSize > 0 && track.fileSize % 2352ULL == 0;
+    };
+    const auto trackOne = std::find_if(layout.tracks.begin(), layout.tracks.end(), [](const DiscTrack& track) {
+        return track.trackNumber == 1;
+    });
+    const auto trackTwo = std::find_if(layout.tracks.begin(), layout.tracks.end(), [](const DiscTrack& track) {
+        return track.trackNumber == 2;
+    });
+    if (trackOne == layout.tracks.end() || trackTwo == layout.tracks.end() ||
+        !hasCompleteSectors(*trackOne) || !hasCompleteSectors(*trackTwo)) {
+        error = "Track 1 and Track 2 must contain complete 2352-byte sectors";
         return false;
     }
 

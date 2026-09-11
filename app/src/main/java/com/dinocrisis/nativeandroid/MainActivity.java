@@ -1,15 +1,20 @@
 package com.dinocrisis.nativeandroid;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
+import android.graphics.Color;
 import android.view.Gravity;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.database.Cursor;
 import android.provider.OpenableColumns;
@@ -35,6 +40,14 @@ public final class MainActivity extends Activity {
     private File gameDataDirectory;
     private File cueFile;
     private File trackOneFile;
+    private File trackTwoFile;
+    private Uri cueUri;
+    private Uri trackOneUri;
+    private Uri trackTwoUri;
+    private Button loadGameButton;
+    private TextView cueSelectionStatus;
+    private TextView trackOneSelectionStatus;
+    private TextView trackTwoSelectionStatus;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -49,23 +62,45 @@ public final class MainActivity extends Activity {
         root.addView(surfaceView, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
-        Button selectDisc = new Button(this);
-        selectDisc.setText("Select Dino Crisis Disc");
-        selectDisc.setOnClickListener(view -> beginCueSelection());
-        FrameLayout.LayoutParams buttonParams = new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        buttonParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-        root.addView(selectDisc, buttonParams);
+        LinearLayout menu = new LinearLayout(this);
+        menu.setOrientation(LinearLayout.VERTICAL);
+        menu.setPadding(32, 28, 32, 28);
+        menu.setBackgroundColor(0xEE101820);
+
+        TextView title = new TextView(this);
+        title.setText("DINO CRISIS NATIVE");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(24);
+        title.setGravity(Gravity.CENTER);
+        menu.addView(title, matchWrapParams(0, 16));
+
+        cueSelectionStatus = addSelection(menu, "SELECT CUE", view -> beginSelection(REQUEST_CUE, "text/plain"), "Not selected");
+        trackOneSelectionStatus = addSelection(menu, "SELECT TRACK 1 BIN", view -> beginSelection(REQUEST_TRACK_ONE, "application/octet-stream"), "Not selected");
+        trackTwoSelectionStatus = addSelection(menu, "SELECT TRACK 2 BIN", view -> beginSelection(REQUEST_TRACK_TWO, "application/octet-stream"), "Not selected");
+
+        loadGameButton = new Button(this);
+        loadGameButton.setText("LOAD GAME");
+        loadGameButton.setEnabled(false);
+        loadGameButton.setOnClickListener(view -> loadGame());
+        menu.addView(loadGameButton, matchWrapParams(0, 12));
+
+        Button settingsButton = new Button(this);
+        settingsButton.setText("SETTINGS");
+        settingsButton.setOnClickListener(view -> showSettings());
+        menu.addView(settingsButton, matchWrapParams(0, 8));
 
         dataStatus = new TextView(this);
         dataStatus.setText(ALPHA_RUNTIME_STATUS);
-        dataStatus.setTextColor(0xFFFFFFFF);
-        dataStatus.setBackgroundColor(0xAA000000);
-        dataStatus.setPadding(20, 12, 20, 12);
-        FrameLayout.LayoutParams statusParams = new FrameLayout.LayoutParams(
+        dataStatus.setTextColor(Color.WHITE);
+        dataStatus.setPadding(12, 18, 12, 18);
+        menu.addView(dataStatus, matchWrapParams(0, 8));
+
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.addView(menu);
+        FrameLayout.LayoutParams menuParams = new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        statusParams.gravity = Gravity.BOTTOM;
-        root.addView(dataStatus, statusParams);
+        menuParams.gravity = Gravity.TOP;
+        root.addView(scrollView, menuParams);
         setContentView(root);
     }
 
@@ -93,16 +128,36 @@ public final class MainActivity extends Activity {
     private static native void nativeOnSurfaceChanged(int width, int height);
     private static native void nativeOnDrawFrame();
     private static native String nativeValidateDiscFiles(String cuePath, String trackOnePath, String trackTwoPath);
+    private static native String nativeLoadGame(String cuePath, String trackOnePath, String trackTwoPath);
 
-    private static String formatRuntimeStatus(String phase, String value) {
-        return phase + ": " + value;
+    private LinearLayout.LayoutParams matchWrapParams(int topMargin, int bottomMargin) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.topMargin = topMargin;
+        params.bottomMargin = bottomMargin;
+        return params;
     }
 
-    private void beginCueSelection() {
+    private TextView addSelection(LinearLayout menu, String label, View.OnClickListener listener, String initialText) {
+        Button button = new Button(this);
+        button.setText(label);
+        button.setOnClickListener(listener);
+        menu.addView(button, matchWrapParams(8, 0));
+        TextView status = new TextView(this);
+        status.setText(initialText);
+        status.setTextColor(0xFFB8C7D1);
+        status.setPadding(12, 2, 12, 8);
+        menu.addView(status, matchWrapParams(0, 4));
+        return status;
+    }
+
+    private void beginSelection(int requestCode, String mimeType) {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
-        startActivityForResult(intent, REQUEST_CUE);
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{mimeType, "application/octet-stream"});
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(intent, requestCode);
     }
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -113,43 +168,91 @@ public final class MainActivity extends Activity {
         }
 
         try {
+            persistPermission(data.getData());
             if (requestCode == REQUEST_CUE) {
-                cueFile = importCue(data.getData());
-                showDataStatus("CUE selected. Select Track 1 BIN.");
-                beginBinarySelection(REQUEST_TRACK_ONE);
+                cueUri = data.getData();
+                cueFile = importCue(cueUri);
+                setSelectionStatus(cueSelectionStatus, "Valid: " + displayName(cueUri));
             } else if (requestCode == REQUEST_TRACK_ONE) {
-                trackOneFile = importBinary(data.getData(), "track1.bin");
-                showDataStatus("Track 1 selected. Select Track 2 BIN.");
-                beginBinarySelection(REQUEST_TRACK_TWO);
+                trackOneUri = data.getData();
+                trackOneFile = importBinary(trackOneUri, "track1.bin");
+                setSelectionStatus(trackOneSelectionStatus, "Valid: " + displayName(trackOneUri));
             } else if (requestCode == REQUEST_TRACK_TWO) {
-                File trackTwoFile = importBinary(data.getData(), "track2.bin");
-                String runtimeStatus = nativeValidateDiscFiles(
-                    cueFile.getAbsolutePath(), trackOneFile.getAbsolutePath(), trackTwoFile.getAbsolutePath());
-                if (runtimeStatus != null && !runtimeStatus.isEmpty() && runtimeStatus.startsWith("ERROR:")) {
-                    showDataError(runtimeStatus.substring("ERROR:".length()));
-                    return;
-                }
-                if (runtimeStatus == null || runtimeStatus.isEmpty()) {
-                    runtimeStatus = "Disc validated: CUE + Track 1 BIN + Track 2 BIN; runtime bootstrapped";
-                }
-                showDataStatus(runtimeStatus);
+                trackTwoUri = data.getData();
+                trackTwoFile = importBinary(trackTwoUri, "track2.bin");
+                setSelectionStatus(trackTwoSelectionStatus, "Valid: " + displayName(trackTwoUri));
             }
+            updateLoadButton();
+            showDataStatus("Selection accepted. Choose LOAD GAME when all three files are ready.");
         } catch (IOException | IllegalArgumentException error) {
+            TextView status = requestCode == REQUEST_CUE ? cueSelectionStatus :
+                requestCode == REQUEST_TRACK_ONE ? trackOneSelectionStatus : trackTwoSelectionStatus;
+            setSelectionError(status, error.getMessage() == null ? "Unable to import selected file" : error.getMessage());
             showDataError(error.getMessage() == null ? "Unable to import selected file" : error.getMessage());
         }
     }
 
-    private void beginBinarySelection(int requestCode) {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("*/*");
-        startActivityForResult(intent, requestCode);
+    private void persistPermission(Uri source) {
+        try {
+            getContentResolver().takePersistableUriPermission(source,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (SecurityException ignored) {
+            showDataStatus("File accepted for this session; persistent access was unavailable.");
+        }
+    }
+
+    private void updateLoadButton() {
+        if (cueFile == null || trackOneFile == null || trackTwoFile == null) {
+            loadGameButton.setEnabled(false);
+            return;
+        }
+        String validation = nativeValidateDiscFiles(
+            cueFile.getAbsolutePath(), trackOneFile.getAbsolutePath(), trackTwoFile.getAbsolutePath());
+        boolean valid = validation != null && !validation.startsWith("ERROR:");
+        loadGameButton.setEnabled(valid);
+        if (valid) {
+            showDataStatus("All three files pass native validation. LOAD GAME is ready.");
+        }
+    }
+
+    private void loadGame() {
+        if (cueFile == null || trackOneFile == null || trackTwoFile == null) {
+            showDataError("Select CUE, Track 1 BIN, and Track 2 BIN first");
+            return;
+        }
+        loadGameButton.setEnabled(false);
+        showDataStatus("Loading: validating CUE, tracks, sector access, and native runtime...");
+        String runtimeStatus = nativeLoadGame(cueFile.getAbsolutePath(), trackOneFile.getAbsolutePath(), trackTwoFile.getAbsolutePath());
+        if (runtimeStatus != null && runtimeStatus.startsWith("ERROR:")) {
+            showDataError(runtimeStatus.substring("ERROR:".length()));
+            updateLoadButton();
+            return;
+        }
+        showDataStatus(runtimeStatus + "\nGame runtime not yet ready");
+    }
+
+    private void showSettings() {
+        new AlertDialog.Builder(this)
+            .setTitle("Settings")
+            .setMessage("OpenGL ES 3.x\nPrimary ABI: arm64-v8a\nGame files stay external and read-only.\nThe native game runtime is not yet ready.")
+            .setPositiveButton("OK", null)
+            .show();
+    }
+
+    private void setSelectionStatus(TextView view, String message) {
+        view.setText(message);
+        view.setTextColor(0xFF80E080);
+    }
+
+    private void setSelectionError(TextView view, String message) {
+        view.setText("Error: " + message);
+        view.setTextColor(0xFFFF8080);
     }
 
     private File importCue(Uri source) throws IOException {
         String displayName = displayName(source);
-        if (displayName != null && !displayName.toLowerCase().endsWith(".cue")) {
-            throw new IllegalArgumentException("Select a CUE file for the disc layout");
+        if (displayName != null) {
+            GameDataFileSelection.requireCueName(displayName);
         }
         StringBuilder canonicalCue = new StringBuilder();
         int trackReference = 0;
@@ -186,8 +289,8 @@ public final class MainActivity extends Activity {
 
     private File importBinary(Uri source, String targetName) throws IOException {
         String displayName = displayName(source);
-        if (displayName != null && !displayName.toLowerCase().endsWith(".bin")) {
-            throw new IllegalArgumentException("Select a BIN file for " + targetName);
+        if (displayName != null) {
+            GameDataFileSelection.requireBinName(displayName, targetName);
         }
         File target = new File(gameDataDirectory, targetName);
         try (InputStream input = getContentResolver().openInputStream(source)) {
@@ -202,9 +305,7 @@ public final class MainActivity extends Activity {
                 }
             }
         }
-        if (target.length() == 0) {
-            throw new IllegalArgumentException("Selected BIN file is empty: " + targetName);
-        }
+        GameDataFileSelection.requireNonEmpty(target, targetName);
         return target;
     }
 

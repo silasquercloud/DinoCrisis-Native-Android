@@ -36,7 +36,7 @@ Java_com_dinocrisis_nativeandroid_MainActivity_nativeInitialize(JNIEnv* env, jcl
 }
 
 JNIEXPORT void JNICALL
-Java_com_dinocrisis_nativeandroid_MainActivity_nativeShutdown(JNIEnv* env, jclass /*clazz*/) {
+Java_com_dinocrisis_nativeandroid_MainActivity_nativeShutdown(JNIEnv* /*env*/, jclass /*clazz*/) {
     if (g_nativeEngine == nullptr) {
         return;
     }
@@ -95,9 +95,11 @@ Java_com_dinocrisis_nativeandroid_MainActivity_nativeValidateDiscFiles(JNIEnv* e
         if (track.trackNumber == 1) {
             track.filePath = trackOne;
             track.fileName = trackOne;
+            platform::readOnlyFileSize(track.filePath, track.fileSize);
         } else if (track.trackNumber == 2) {
             track.filePath = trackTwo;
             track.fileName = trackTwo;
+            platform::readOnlyFileSize(track.filePath, track.fileSize);
         }
     }
     if (!data::ExternalGameDataSource::validate(layout, error)) {
@@ -105,15 +107,39 @@ Java_com_dinocrisis_nativeandroid_MainActivity_nativeValidateDiscFiles(JNIEnv* e
     }
 
     data::PsxExecutableInfo executable;
-    if (!data::ExternalGameDataSource::analyzePsxExecutable(layout, executable, error)) {
-        return env->NewStringUTF((std::string("ERROR:") + error).c_str());
+    const bool executableFound = data::ExternalGameDataSource::analyzePsxExecutable(layout, executable, error);
+    std::string status = "CUE valid | Track 1 valid | Track 2 valid | Disc validation: success";
+    if (executableFound) {
+        status += " | " + executable.status;
+    } else {
+        status += " | PS-X EXE discovery: " + error;
     }
-
-    std::string status = "Game data detected: CUE validated | Track 1 validated | Track 2 validated | ";
-    status += "Disc validation result: success | ";
-    status += executable.status;
-    platform::logInfo("SAF disc validation succeeded: cue=" + cue + ", track1=" + trackOne + ", track2=" + trackTwo + " | " + executable.status);
+    platform::logInfo("SAF disc validation succeeded: cue=" + cue + ", track1=" + trackOne + ", track2=" + trackTwo);
     return env->NewStringUTF(status.c_str());
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_dinocrisis_nativeandroid_MainActivity_nativeLoadGame(JNIEnv* env, jclass /*clazz*/, jstring cuePath, jstring trackOnePath, jstring trackTwoPath) {
+    const jstring validation = Java_com_dinocrisis_nativeandroid_MainActivity_nativeValidateDiscFiles(
+        env, nullptr, cuePath, trackOnePath, trackTwoPath);
+    const char* result = env->GetStringUTFChars(validation, nullptr);
+    const std::string status = result == nullptr ? "ERROR:Unable to read native validation result" : result;
+    if (result != nullptr) {
+        env->ReleaseStringUTFChars(validation, result);
+    }
+    env->DeleteLocalRef(validation);
+    if (status.rfind("ERROR:", 0) == 0) {
+        if (g_nativeEngine != nullptr) {
+            g_nativeEngine->setRuntimeReady(false);
+        }
+        return env->NewStringUTF(status.c_str());
+    }
+    if (g_nativeEngine == nullptr) {
+        return env->NewStringUTF("ERROR:Native engine is not initialized");
+    }
+    g_nativeEngine->setRuntimeReady(true);
+    const std::string runtimeStatus = status + " | Game runtime not yet ready";
+    return env->NewStringUTF(runtimeStatus.c_str());
 }
 
 }  // extern "C"

@@ -109,6 +109,12 @@ void NativeEngine::initialize(const std::string& gameDataPath) {
     initialized_ = true;
 }
 
+void NativeEngine::setRuntimeReady(bool ready) {
+    runtimeReady_ = ready;
+    platform::logInfo(ready ? "Runtime data accepted; renderer may initialize" :
+                              "Runtime data rejected; renderer remains disabled");
+}
+
 void NativeEngine::shutdown() {
     if (program_ != 0) {
         glDeleteProgram(program_);
@@ -123,11 +129,16 @@ void NativeEngine::shutdown() {
         vao_ = 0;
     }
     surfaceCreated_ = false;
+    runtimeReady_ = false;
     initialized_ = false;
     platform::logInfo("Native engine shutdown complete");
 }
 
 void NativeEngine::onSurfaceCreated() {
+    if (!runtimeReady_) {
+        platform::logInfo("OpenGL ES surface created while runtime is waiting for valid game data");
+        return;
+    }
     glClearColor(0.08f, 0.10f, 0.12f, 1.0f);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -188,6 +199,9 @@ void NativeEngine::onSurfaceChanged(int width, int height) {
 }
 
 void NativeEngine::onDrawFrame() {
+    if (runtimeReady_ && !surfaceCreated_) {
+        onSurfaceCreated();
+    }
     if (!surfaceCreated_ || program_ == 0) {
         return;
     }

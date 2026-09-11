@@ -14,6 +14,7 @@ captures/
 *.ap_
 
 # Native / caches
+**/__pycache__/
 *.o
 *.obj
 *.so
@@ -22,6 +23,7 @@ captures/
 
 # Legal exclusions: game data and commercial assets
 # User-owned original discs or extracted assets must stay local and outside the repo.
+local_game_data/
 *.bin
 *.cue
 *.iso
